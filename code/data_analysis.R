@@ -19,12 +19,16 @@ top10$year <- format(as.Date(top10$week_ending,format="%Y-%m-%d"), "%Y")
 top10 <- top10 %>% 
   group_by(show, year) %>% 
   summarise(n_total = sum(total_seats))
+
 ## Plot the top ten shows
 top10 %>% 
   ggplot(aes(x=year, y=n_total, color=show, group=show)) +
-  geom_line(size=1.5)+
-  theme_minimal()+
-  theme(legend.position = "bottom")+
-  labs(y="Total Seat Sold at that year")+
-  scale_x_discrete(breaks = seq(1985, 2020, 10))
-ggsave("../code/Line_Plot.png")
+  geom_line(size=1.5, alpha = 0.8)+
+  labs(y="", 
+       title="Line Plot for Total Seats Sold For Broadyway Show")+
+  scale_x_discrete(breaks = seq(1985, 2020, 10)) +
+  hrbrthemes::theme_ft_rc() +
+  labs(caption=
+         "(Data from #tidytuesday)
+       @JihongZhang")
+ggsave(outputplot, filename = "../code/Line_Plot.png")
