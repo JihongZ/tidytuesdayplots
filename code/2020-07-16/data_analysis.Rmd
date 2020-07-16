@@ -1,0 +1,115 @@
+---
+title: "data analysis"
+author: "Jihong Zhang"
+date: "7/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r pack}
+library(tidyverse)
+library(RColorBrewer)
+library(gganimate)
+library(ggimage)
+```
+
+## Read in data
+```{r import, echo=FALSE}
+tt_output <- tidytuesdayR::tt_load(2020, week = 29)
+astronauts <- tt_output$astronauts
+```
+
+## Checking
+```{r check}
+glimpse(astronauts)
+astronauts %>% count(name)
+astronauts %>% count(nationality)
+astronauts %>% count(year_of_mission)
+```
+
+```{r}
+dt_clean <- astronauts %>% 
+  select(year_of_mission, nationality, name, mission_title) %>% 
+  distinct() %>% 
+  arrange(year_of_mission, nationality)
+
+dt_sum <- dt_clean %>% 
+  group_by(year_of_mission, nationality) %>% 
+  summarise(
+    n = n(),
+  ) %>% 
+  group_by(nationality) %>% 
+  mutate(cum_n = cumsum(n)) %>% 
+  ungroup() %>% 
+  select(-n)
+
+top_cnt <- dt_clean %>% 
+  group_by(nationality) %>% 
+  summarise(total_n = n()) %>% 
+  arrange(desc(total_n)) %>% 
+  filter(total_n > 10) %>% 
+  pull(nationality)
+
+df_countrycode <-
+  tribble(~nationality, ~code, 
+          "U.S.", "US",
+          "Canada", "CA",
+          "U.S.S.R/Russia", "RU",
+          "Germany", "DE",
+          "France", "FR",
+          "Japan", "JP",
+          "China", "CN",
+          "Italy", "IT"
+          
+          )
+first_mission <- dt_clean %>% 
+  group_by(nationality) %>% 
+  summarise(
+    first_mission = min(year_of_mission) - 1,
+    last_mission = max(year_of_mission),
+    year_of_mission = first_mission
+    ) %>% 
+  filter(nationality %in% top_cnt) %>% 
+  mutate(cum_n = 0) %>% 
+  left_join(df_countrycode, by = "nationality") 
+
+
+dt_sum <- dt_sum %>% 
+  filter(nationality %in% top_cnt) %>% 
+  bind_rows(first_mission %>% select(-first_mission, -last_mission, -code))  # add zero
+
+
+flag_dt <- first_mission %>% 
+  select(-cum_n, -year_of_mission) %>% 
+  left_join(dt_sum, by = c("nationality" = "nationality", "last_mission" = "year_of_mission"))
+```
+
+```{r}
+ggplot(dt_sum %>% filter(nationality %in% top_cnt), aes(year_of_mission, cum_n)) +
+  geom_col(aes(fill = nationality))
+```
+
+
+```{r}
+ggplot(dt_sum, aes(year_of_mission, cum_n)) +
+  geom_line(aes(col = nationality), size = 0.8, alpha = 1) +
+  geom_point(data = flag_dt, aes(x = last_mission, color = nationality), size = 2) +
+  geom_flag(data = flag_dt, size = 0.02, asp= 2, alpha = 0.5,
+            aes(x= first_mission, y = 0, image = code)) +
+  ggrepel::geom_text_repel(data = flag_dt, aes(x = last_mission, y = cum_n, label = cum_n, col = nationality),
+                           xlim=c(2020, NA), alpha = 0.6) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_continuous(trans = "sqrt", breaks = c(0, 25 , 50, 100, 250, 500, 750)) +
+  scale_x_continuous(breaks = seq(1960, 2020, 10), limits = c(1955, 2025)) +
+  labs(title = "Top 8 Number of Space Missions by Country",
+       caption = "Source: Mariya Stavnichuk and Tatsuya Corlett\n@jihongzgamma for TidyTuesday 2020 Week 29",
+       y = "Cumulative Number (n)", x = NULL) +
+  hrbrthemes::theme_ft_rc() +
+  theme(legend.position = "bottom") +
+  ggsave(here::here("plots/2020_29", "astronauts.png"), width = 14, height = 10)
+```
+
