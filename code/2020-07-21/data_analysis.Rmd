@@ -1,0 +1,102 @@
+---
+title: "data analysis"
+author: "Jihong Zhang"
+date: "7/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r pack}
+library(tidyverse)
+library(RColorBrewer)
+library(gganimate)
+library(ggimage) ## for flag and plot background
+library(ggblur) ## for blurred points, if not installed, devtools::install_github("coolbutuseless/ggblur")
+library(ggdist)
+library(hrbrthemes)
+```
+
+## Read in data
+```{r import, echo=FALSE}
+tt_output <- tidytuesdayR::tt_load(2020, week = 30)
+animal_outcomes <- tt_output$animal_outcomes
+animal_complaints <- tt_output$animal_complaints
+brisbane_complaints <- tt_output$brisbane_complaints
+```
+
+## Data Checking
+```{r check}
+glimpse(animal_outcomes)
+glimpse(animal_complaints)
+glimpse(brisbane_complaints)
+animal_outcomes %>% count(outcome)
+animal_outcomes %>% count(ACT)
+animal_outcomes %>% count(animal_type, outcome)
+animal_outcomes %>% count(animal_type)
+```
+
+## Data Cleaning and Manipulation
+```{r}
+dt_oc <- animal_outcomes %>% 
+  select(year, animal_type, outcome) %>% 
+  distinct() %>% 
+  filter(animal_type %in% c("Cats", "Dogs", "Wildlife", "Other Animals")) %>% 
+  arrange(year, animal_type)
+
+dt_comp <- animal_complaints %>% 
+  select(animal_type = `Animal Type`, 
+         comp_type = `Complaint Type`, 
+         date_rec = `Date Received`) %>% 
+  mutate(year = format(parse_datetime(date_rec, "%B %Y"), "%Y")) %>% 
+  group_by(year, animal_type, comp_type) %>% 
+  summarize(n = n())
+dt_comp %>% count(date_rec)
+dt_comp %>% count(comp_type)
+```
+
+
+## Visualization
+```{r}
+theme_set(theme_minimal())
+dt_comp %>%
+  group_by(year, animal_type, comp_type) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  arrange(year) %>% 
+  ggplot(aes(year, n, col = animal_type, group = animal_type)) +
+  geom_line() +
+  facet_wrap( ~comp_type)
+```
+
+
+```{r}
+dt_comp %>% 
+  mutate(comp_type = as.factor(comp_type)) %>% 
+  ggplot(aes(year, n, col = comp_type, group = comp_type)) +
+  geom_path() +
+  geom_point_blur(blur_size =  2, size = 0.5) +
+  scale_y_continuous(breaks = seq(200, 1800, 400), trans = "sqrt") +
+  coord_polar(theta = "x", direction = -1) +
+  facet_grid(~animal_type) +
+  scale_color_brewer(palette = "Dark2") +
+  theme_ft_rc() +
+  labs(
+    color = "Complaint Type",
+    title = "RSPCA: Counts of the Complaints for Dogs Vs. Cats",
+    caption = "Plotted by @jihongzgamma\nSource:#TidyTuesday - Australian Pets"
+    ) +
+  theme(
+    legend.position = "bottom"
+  ) 
+
+ggsave(filename = here::here("plots/2020_30", "freq_plot.png"), width = 14, height = 10)
+```
+
+```{r}
+RColorBrewer::display.brewer.all()
+```
+
