@@ -1,0 +1,81 @@
+---
+title: "ggforce Reference"
+author: "Jihong Zhang"
+date: "7/28/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(ggforce)
+```
+
+## Polygons
+
+```{r cars}
+ggplot() +
+  geom_regon(aes(x0 = runif(8), y0=runif(8), 
+                 sides = sample(3:10, 8), angle = 0,
+                 r = runif(8) / 10))+
+  coord_fixed()
+
+ggplot() +
+  geom_regon(aes(x0 = runif(8), y0 = runif(8), sides = sample(3:10, 8), angle = 0,r = runif(8) / 10), 
+             expand = unit(1, 'cm'),
+             radius = unit(0.1, 'cm')) +
+  coord_fixed()
+```
+
+## Arc and Pie
+
+
+```{r arc, echo=FALSE}
+arcs <- data.frame(
+  start = seq(0, 2*pi, length.out = 9)[-9],
+  end = seq(0, 2*pi, length.out = 9)[-1],
+  r = rep(1:2, 4)
+)
+
+# Behold the arcs
+ggplot(arcs) +
+  geom_arc_bar(aes(x0=0, y0=0, r0=r-1, r=r, start=start,
+                   end=end, fill=r)) +
+  coord_fixed()
+```
+
+```{r}
+ggplot(arcs) +
+  geom_arc_bar(aes(x0 = 0, y0 = 0, r0 = r - 1, r = r, start = start, end = end, fill = as.factor(r)), 
+               radius = unit(3, 'mm')) +
+  coord_equal()
+```
+
+```{r}
+# if you got values for a pie chart, use stat_pie
+states <- c(
+  'eaten', "eaten but said you didn\' t", 'cat took it', 'for tonight',
+  'will decompose slowly'
+)
+
+pie <- data.frame(
+  state = factor(rep(states, 2), levels = states),
+  type = rep(c('Pie', 'Donut'), each = 5),
+  r0 = rep(c(0, 0.8), each = 5),
+  focus = rep(c(.2, 0, 0, 0, 0),2),
+  amount = c(4, 3, 1, 1.5, 6, 6, 1, 2, 3, 2),
+  stringsAsFactors = FALSE
+)
+```
+
+```{r}
+ggplot() + geom_arc_bar(
+  aes(x0 = 0, y0 = 0, r0 = r0, r = 1, amount = amount, fill = state, explode= focus),
+  data = pie, stat = "pie"
+) +
+  facet_wrap(~type, ncol = 1) + 
+  coord_equal() +
+  theme_no_axes() +
+  scale_fill_brewer('', type = "qual")
+```
+

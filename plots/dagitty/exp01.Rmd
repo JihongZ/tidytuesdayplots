@@ -1,0 +1,104 @@
+---
+title: "dagitty"
+author: "Jihong Zhang"
+date: "7/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dagitty)
+library(lavaan)
+```
+
+## R Markdown
+
+## http://dagitty.net/primer/
+```{r cars}
+g <- dagitty('
+dag {
+  X [pos="0,1"]
+  Y [pos="1,1"]
+  Z [pos="2,1"]
+  W [pos="1,0"]
+  T [pos="2,2"]
+
+  X -> Y -> Z -> T
+  X -> W -> Y -> T
+  W -> Z
+}')
+
+plot(g)
+```
+
+```{r}
+parents(g, "Z")
+```
+
+```{r}
+ancestors(g, "Z")
+```
+
+```{r}
+children(g, "W")
+```
+
+```{r}
+descendants(g, "W")
+```
+
+```{r}
+paths(g, "X", "T")$paths
+```
+
+```{r}
+paths(g, "X", "T", directed = TRUE)$paths
+```
+
+## Study 2
+```{r}
+set.seed(1)
+N = 10000
+Ux <- rnorm(N); Uy <- rnorm(N); Uz <- rnorm(N)
+X <- Ux
+Y <- 1/3*X + Uy
+Z <- 1/16*Y + Uz
+d <- data.frame(X = X, Y = Y, Z = Z)
+```
+
+```{r}
+g <- dagitty("
+dag {
+  X -> Y -> Z
+  Ux -> X
+  Uy -> Y
+  Uz -> Z
+}             
+")
+
+coordinates(g) <- list(
+  x = c(Ux=1, Uy=2, Uz=3, X=1, Y=2, Z=3),
+  y = c(Ux=1, Uy=1, Uz=1, X=0, Y=0, Z=0)
+)
+
+plot(g)
+```
+```{r}
+fig2.5 <- dagitty("dag{
+                  X -> R -> S -> T <- U <- V -> Y
+}")
+plot(graphLayout(fig2.5))
+```
+
+```{r}
+fig2.6 <- dagitty("dag{
+                  X -> R -> S -> T <- U <- V <- Y
+                  T <- P
+}")
+plot(graphLayout(fig2.6))
+```
+
+```{r}
+impliedConditionalIndependencies(fig2.6)
+```
+

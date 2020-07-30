@@ -1,0 +1,79 @@
+---
+title: "Week2"
+author: "Ishwara Hegde"
+date: "7/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#Loading all the necessary packages
+if (!require(pacman)) install.packages("pacman")
+
+pacman::p_load(
+  "dplyr", "tidyr", "gapminder",
+  "ggplot2", "ggalt",
+  "forcats", "R.utils", "png",
+  "grid", "scales",
+  "bbplot", "waffle",
+  "ggimage"
+)
+```
+
+
+```{r loadind the data}
+animal_outcomes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-07-21/animal_outcomes.csv')
+
+```
+
+
+# Data Analysis
+
+I want to see the total proportion of animals rehomed in the entire dataset.Since I intend to visualise proportions I will use a waffle plot.
+
+```{r, Creating the Dataset}
+#I keep only those animals that have been rehomed
+data1 <- animal_outcomes %>% filter(outcome=="Rehomed") %>% select(year,animal_type,outcome,Total)
+animal_levels<- unique(data1$animal_type)
+data1 <- data1 %>% mutate(animal_fct=factor(data1$animal_type,levels=animal_levels))
+#Creating a new dataset with the factor
+data2 <- data1 %>% select(year,Total,animal_fct)
+```
+
+
+
+```{r , waffle 2}
+data2 %>%count(animal_fct, wt = Total) %>% mutate(freq = n) %>%
+  ggplot(aes(x = animal_fct, y = freq,
+             fill = animal_fct)) +
+  geom_waffle(aes(values = freq),  # geom_waffle() needs a special values aesthetic
+              n_rows = 10,  # It has lots of other options too
+              flip = TRUE,
+              make_proportional = TRUE) +
+  labs(fill = NULL) +
+  coord_equal() + 
+  scale_fill_brewer(palette = "Dark2") +
+  hrbrthemes::theme_modern_rc()-> base_graph
+
+#Adding theme and Poloshing the graph
+base_graph +
+  labs(title="Share of Animals Adopted Between 1999 and 2008 ",
+       subtitle ="Each square represents a percentage of total animals adopted between 1999 and 2008",
+       caption="Data Source:RSPCA Australia",
+       x = "", y = "")+
+  theme(
+    plot.caption = element_text(hjust=FALSE),
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title.y = element_blank(),
+    legend.position = "right"
+  ) -> p
+
+#Saving the plot
+# ggsave("waffle_animals.png",path="C:/Users/user/OneDrive - City University of Hong Kong/University/Cemfi/TidyTuesday/Output")
+ggsave(filename = here::here("plots/2020_30", "waffle_plot.png"), p,
+       width = 10, height = 7)
+
+```

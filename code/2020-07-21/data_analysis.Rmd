@@ -17,6 +17,7 @@ library(gganimate)
 library(ggimage) ## for flag and plot background
 library(ggblur) ## for blurred points, if not installed, devtools::install_github("coolbutuseless/ggblur")
 library(ggdist)
+library(ggsci)
 library(hrbrthemes)
 ```
 
@@ -54,7 +55,6 @@ dt_comp <- animal_complaints %>%
   mutate(year = format(parse_datetime(date_rec, "%B %Y"), "%Y")) %>% 
   group_by(year, animal_type, comp_type) %>% 
   summarize(n = n())
-dt_comp %>% count(date_rec)
 dt_comp %>% count(comp_type)
 ```
 
@@ -82,7 +82,7 @@ dt_comp %>%
   scale_y_continuous(breaks = seq(200, 1800, 400), trans = "sqrt") +
   coord_polar(theta = "x", direction = -1) +
   facet_grid(~animal_type) +
-  scale_color_brewer(palette = "Dark2") +
+  scale_color_brewer(palette = "Accent") +
   theme_ft_rc() +
   labs(
     color = "Complaint Type",
@@ -93,10 +93,11 @@ dt_comp %>%
     legend.position = "bottom"
   ) 
 
-ggsave(filename = here::here("plots/2020_30", "freq_plot.png"), width = 14, height = 10)
+ggsave(filename = here::here("plots/2020_30", "freq_plot.png"), width = 10, height = 7)
 ```
 
 ```{r}
 RColorBrewer::display.brewer.all()
 ```
+
 

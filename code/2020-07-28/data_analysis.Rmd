@@ -1,0 +1,164 @@
+---
+title: "data analysis"
+author: "Jihong Zhang"
+date: "7/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r pack}
+library(tidyverse)
+library(RColorBrewer) ## for diffrect color
+library(ggforce) ## for arc and pie
+library(ggimage) ## for flag and background
+library(ggblur) ## for blurred points, if not installed, devtools::install_github("coolbutuseless/ggblur")
+library(magick)
+# library(RCurl)
+# library(png)
+library(grid)
+```
+
+## Read in data
+```{r import, echo=FALSE}
+tt_output <- tidytuesdayR::tt_load(2020, week = 31)
+penguins <- tt_output$penguins
+```
+
+## Checking
+```{r check}
+glimpse(penguins)
+penguins %>% count(species)
+penguins %>% count(island)
+penguins %>% count(sex)
+summary(penguins %>% select(bill_length_mm:body_mass_g))
+```
+
+```{r}
+index_label = c("bill_length_mm.sd", "bill_depth_mm.sd", "flipper_length_mm.sd", 
+"body_mass_g.sd")
+index_names = c("Bill\nLength", "Bill\nDepth", "Flipper\nLength", "Body\nMass")
+
+# remove NA
+
+standized <- function(x){
+  return(as.numeric(scale(x)))
+}
+
+penguins_clean <- penguins %>% 
+  select(-island, -year) %>% 
+  {.[complete.cases(.),]} %>% 
+  arrange(species, sex) %>% 
+  mutate(across(bill_length_mm:body_mass_g, standized, .names = "{col}.sd")) %>% 
+  select(species, sex, ends_with("sd")) %>% 
+  pivot_longer(cols = ends_with("sd"), names_to = "index", values_to = "values")
+
+glimpse(penguins_clean)
+
+penguins_clean_sum <- penguins_clean %>% 
+  group_by(species, sex, index) %>% 
+  summarise(mean = mean(values)) %>% 
+  ungroup() %>% 
+  mutate(index = factor(index, levels = index_label, labels = index_names))
+
+```
+
+
+
+
+```{r}
+img1 <- image_read(here::here("img", "penguin_adelie.jpg"))
+image1 <- image_fill(img1, 'none')
+img2 <- image_read(here::here("img", "penguin_chinstrap.jpg"))
+image2 <- image_fill(img2, 'none')
+img3 <- image_read(here::here("img", "penguin_gentoo.jpg"))
+image3 <- image_fill(img3, 'none')
+
+annotation.text <- data.frame(
+  x = rep(0, 3),
+  y = rep(3, 3),
+  text = c("Adelie Penguin has relatively shorter bill and flipper", 
+           "Chinstrap Penguin has longer Bill and smaller weight", 
+           "Gentoo Penguin has heaviest weight but shortest bill depth"),
+  species = c("Adelie", "Chinstrap", "Gentoo")
+)
+
+
+annotation_custom2 <- function(grob, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, data) {
+  layer(
+    data = data, stat = StatIdentity, position = PositionIdentity,
+    geom = ggplot2:::GeomCustomAnn,
+    inherit.aes = TRUE, params = list(
+      grob = grob,
+      xmin = xmin, xmax = xmax,
+      ymin = ymin, ymax = ymax
+    )
+  )
+}
+
+penguins_clean$species %>% unique()
+upper_plot <- penguins_clean %>% 
+  mutate(value_size = case_when(
+    values > 2 ~ 4,
+    between(values, 1,2) ~ 3,
+    between(values, 0,1) ~ 2,
+    values < 0 ~ 1,
+  )) %>% 
+  ggplot(aes(factor(index, levels = index_label, labels = index_names), values)) +
+  geom_point(aes(col = sex, size = value_size), alpha = 0.1) + 
+  geom_point_blur(data = penguins_clean_sum,
+                  aes(index, mean, col = sex)) +
+  geom_line(data = penguins_clean_sum %>% filter(sex == "male"),
+            aes(index, mean, group = species), col = "#C0F0D0", alpha = 0.8, size = 1.3) +
+  geom_line(data = penguins_clean_sum %>% filter(sex == "female"),
+            aes(index, mean, group = species), col = "#F2C2EE", alpha = 0.8, size = 1.3) +
+  annotation_custom2(rasterGrob(image = image1, interpolate =T), 1.5,2.5,-2,-1, data = penguins_clean %>% filter(species == "Adelie")) +
+  annotation_custom2(rasterGrob(image = image2, interpolate =T), 1.5,2.5,-2,-1, data = penguins_clean %>% filter(species == "Chinstrap")) +
+  annotation_custom2(rasterGrob(image = image3, interpolate =T), 2.5,3.5,-2,-1, data = penguins_clean %>% filter(species == "Gentoo")) +
+  geom_text(data = annotation.text, aes(x, y, label = text), 
+hjust = 0, family = "Roboto Condensed", col = "white") +
+  coord_equal() + 
+  facet_wrap(~species) +
+  scale_color_brewer(palette = "Dark2", direction = -1) +
+  labs(x = "", y = "Standardized Values", size = "Level",
+       title = "Three Types of Penguins Comparision", 
+       subtitle = "Female Penguin is relatively smaller to male within same specy based on Bill Length, Bill Depth, Flipper Length, Body Mass",
+       caption = "Source: #TidyTuesday Week 31 - Palmer Penguins\nPlotted by @jihongzgamma") +
+  hrbrthemes::theme_modern_rc() +
+  theme(legend.position = "none") 
+# ggsave(here::here("plots/2020_31", "penguin.png"), width = 14, height = 10)
+  
+```
+
+
+```{r}
+library(cowplot) # for add-on plot
+library(ggridges) # for add-on plot
+library(patchwork) # for add-on plot
+library(aplot) # for add-on plot
+# install.packages("aplot")
+lower_plot <- penguins_clean %>% 
+  mutate(index = factor(index, levels = index_label, labels = index_names)) %>% 
+  ggplot(aes(x = values, y = index, fill = sex)) +
+  ggridges::stat_density_ridges(geom = "density_ridges_gradient", 
+                                show.legend = FALSE, jittered_points = TRUE, 
+                                alpha = 0.2, color = "#C0F0D0") +
+  scale_fill_brewer(palette = "Dark2", direction = -1) +
+  facet_wrap(~ species) +
+  labs(x = "", y = "") +
+  coord_flip() +
+  hrbrthemes::theme_modern_rc()
+
+pp <- list(upper_plot, lower_plot)
+pp2 <- lapply(pp, function(p) p + xlim2(upper_plot))
+
+plot_list(pp2, ncol=1)
+
+
+# save_plot(here::here("plots/2020_31", "penguin.png"), penguin_plot, base_aspect_ratio = 1.3)
+ggsave(here::here("plots/2020_31", "penguin.png"), plot_list(pp2, ncol=1),width = 15, height = 8.5)
+```
+
